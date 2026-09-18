@@ -376,7 +376,7 @@ class GlobalBackendicingadb implements GlobalBackendInterface
         $query = HostgroupSummary::on($this->getDb());
         $this->parseFilter($query, $objects, $filters, MEMBER_QUERY, COUNT_QUERY, HOST_QUERY);
 
-        return $this->getGroupStateCounts($query);
+        return $this->getGroupStateCounts($query, ! ($options & 2));
     }
 
     public function getServicegroupStateCounts($objects, $options, $filters)
@@ -544,7 +544,7 @@ class GlobalBackendicingadb implements GlobalBackendInterface
         return $this;
     }
 
-    protected function getGroupStateCounts(Query $query): array
+    protected function getGroupStateCounts(Query $query, bool $includeServices = true): array
     {
         $results = [];
         $isHostgroup = $query->getModel() instanceof HostgroupSummary;
@@ -607,7 +607,7 @@ class GlobalBackendicingadb implements GlobalBackendInterface
 
             $results[$item->name] = [
                 'details' => [ALIAS => $item->display_name],
-                'counts'  => $hostStates + $serviceStates
+                'counts'  => $includeServices ? $hostStates + $serviceStates : $hostStates
             ];
         }
 
