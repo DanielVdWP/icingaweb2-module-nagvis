@@ -5,6 +5,7 @@
 
 use Icinga\Module\Icingadb\Common\Database;
 use Icinga\Module\Icingadb\Model\Host;
+use Icinga\Module\Icingadb\Model\DependencyNode;
 use Icinga\Module\Icingadb\Model\Hostgroup;
 use Icinga\Module\Icingadb\Model\Instance;
 use Icinga\Module\Icingadb\Model\Service;
@@ -403,8 +404,7 @@ class GlobalBackendicingadb implements GlobalBackendInterface
 
     public function getDirectChildNamesByHostName($hostName)
     {
-        // FIXME: Implement me once https://github.com/Icinga/icingadb/issues/347 is closed
-        return [];
+        return $this->getDirectRelatedHostNames($hostName, false);
     }
 
     public function getDirectChildDependenciesNamesByHostName($hostName, $minBusinessImpact = false): array
@@ -414,13 +414,42 @@ class GlobalBackendicingadb implements GlobalBackendInterface
 
     public function getDirectParentNamesByHostName($hostName)
     {
-        // FIXME: Implement me once https://github.com/Icinga/icingadb/issues/347 is closed
-        return [];
+        return $this->getDirectRelatedHostNames($hostName, true);
     }
 
     public function getDirectParentDependenciesNamesByHostName($hostName, $minBusinessImpact = false): array
     {
         return $this->getDirectParentNamesByHostName($hostName);
+    }
+
+    private function getDirectRelatedHostNames(string $hostName, bool $parents): array
+    {
+        if (! class_exists(DependencyNode::class)) {
+            return [];
+        }
+
+        $host = Host::on($this->getDb())
+            ->columns(['id'])
+            ->filter(Filter::equal('name', $hostName))
+            ->first();
+
+        if (! $host) {
+            return [];
+        }
+
+        $nodes = DependencyNode::forHost($host->id, $this->getDb(), $parents)
+            ->with(['host', 'service'])
+            ->filter(Filter::all(
+                Filter::like('host.id', '*'),
+                Filter::unlike('service.id', '*')
+            ));
+
+        $results = [];
+        foreach ($nodes as $node) {
+            $results[] = $node->host->name;
+        }
+
+        return array_values(array_unique($results));
     }
 
     public function getHostNamesInHostgroup($hostGroupName): array
