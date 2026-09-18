@@ -3,6 +3,7 @@
 // SPDX-FileCopyrightText: 2022 Icinga GmbH <https://icinga.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use Icinga\Module\Icingadb\Common\Backend;
 use Icinga\Module\Icingadb\Common\Database;
 use Icinga\Module\Icingadb\Model\Host;
 use Icinga\Module\Icingadb\Model\DependencyNode;
@@ -424,7 +425,11 @@ class GlobalBackendicingadb implements GlobalBackendInterface
 
     private function getDirectRelatedHostNames(string $hostName, bool $parents): array
     {
-        if (! class_exists(DependencyNode::class)) {
+        if (
+            ! class_exists(DependencyNode::class)
+            || ! method_exists(DependencyNode::class, 'forHost')
+            || (method_exists(Backend::class, 'supportsDependencies') && ! Backend::supportsDependencies())
+        ) {
             return [];
         }
 
