@@ -132,6 +132,7 @@ jobs:
         run: |
           set -u
           sudo tail -n 150 /var/log/apache2/error.log | tee "$RUNNER_TEMP/issue84-apache-errors.log" || true
+          sudo cat /tmp/issue84-auth-events | tee "$RUNNER_TEMP/issue84-auth-events.log" || true
           sudo grep -nE '^(authmodule|authorisationmodule|logonmodule|headermenu|mapurl|urltarget)[[:space:]]*=' /etc/nagvis/nagvis.ini.php | tee "$RUNNER_TEMP/issue84-nagvis-config.log" || true
       - name: Upload actual stack diagnostics
         if: always()
@@ -153,5 +154,6 @@ jobs:
             ${{ runner.temp }}/issue84-click-*.png
             ${{ runner.temp }}/issue84-unauthorized-*.png
             ${{ runner.temp }}/issue84-apache-errors.log
+            ${{ runner.temp }}/issue84-auth-events.log
             ${{ runner.temp }}/issue84-nagvis-config.log
           if-no-files-found: warn
