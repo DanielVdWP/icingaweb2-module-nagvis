@@ -110,7 +110,7 @@ jobs:
             'http://127.0.0.1/nagvis/frontend/nagvis-js/index.php?mod=Map&act=view&show=demo-overview')
           printf 'NagVis iframe URL after intentional misroute: HTTP %s\n' "$status"
           test "$status" = 302
-          grep -i '^Location: /icingaweb2/dashboard' "${RUNNER_TEMP}/misrouted-headers.txt"
+          grep -i '^Location: ' "${RUNNER_TEMP}/misrouted-headers.txt" | grep -F '/icingaweb2/dashboard'
       - name: Check whether the real browser renders nested Icinga Web
         shell: bash
         run: |
