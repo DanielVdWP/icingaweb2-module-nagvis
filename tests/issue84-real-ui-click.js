@@ -14,6 +14,14 @@ const path = require('path');
         const frame = page.frameLocator('#nagvis-iframe');
         await frame.locator('body').waitFor();
         await page.waitForTimeout(900);
+        const nagvisPageText = await frame.locator('body').innerText();
+        if (/You are not permitted to access this page/.test(nagvisPageText)) {
+            throw new Error('NagVis authorization denied; cannot test real map menu');
+        }
+        const openMenu = frame.getByText('Open', { exact: true }).first();
+        await openMenu.hover();
+        await openMenu.click();
+        await page.waitForTimeout(500);
         const mapLinks = await frame.locator('a').evaluateAll(links => links.map(a => ({
             text: (a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 95),
             href: a.getAttribute('href'),
@@ -28,6 +36,10 @@ const path = require('path');
         const hamburg = frame.getByText('Demo: 1 Datacenter Hamburg', { exact: true }).first();
         const targetCount = await hamburg.count();
         report.mapLinkCount = targetCount;
+        report.openMenuHtml = await frame.locator('body').evaluate(el => {
+            const s = el.innerHTML, i = s.indexOf('Demo: 1');
+            return i < 0 ? s.slice(0,2000) : s.slice(Math.max(0,i-650),i+650);
+        });
         report.demoHamburgHtml = await frame.locator('body').evaluate(el => {
             const s = el.innerHTML, i = s.indexOf('Demo: 1 Datacenter Hamburg');
             return i < 0 ? 'not found in DOM' : s.slice(Math.max(0,i-650),i+650);
