@@ -116,6 +116,7 @@ jobs:
             | sudo tee /usr/share/icingaweb2/modules/nagvis/public/js/module.js >/dev/null
           node --check /usr/share/icingaweb2/modules/nagvis/public/js/module.js
           node tests/issue84-browser.js baseline
+          node tests/issue84-real-ui-click.js baseline || echo "NagVis UI click probe incomplete (baseline); see logs"
       - name: Browser regression with exact PR 84 JavaScript
         shell: bash
         run: |
@@ -124,6 +125,7 @@ jobs:
             | sudo tee /usr/share/icingaweb2/modules/nagvis/public/js/module.js >/dev/null
           node --check /usr/share/icingaweb2/modules/nagvis/public/js/module.js
           node tests/issue84-browser.js pr84
+          node tests/issue84-real-ui-click.js pr84 || echo "NagVis UI click probe incomplete (pr84); see logs"
       - name: Upload actual stack diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -140,4 +142,6 @@ jobs:
             ${{ runner.temp }}/correct.json
             ${{ runner.temp }}/issue84-*.json
             ${{ runner.temp }}/issue84-*.png
+            ${{ runner.temp }}/issue84-click-*.json
+            ${{ runner.temp }}/issue84-click-*.png
           if-no-files-found: warn
