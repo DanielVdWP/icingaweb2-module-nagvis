@@ -88,6 +88,20 @@ const path = require('path');
         await page.screenshot({ path: prefix + '.png', fullPage: true });
         fs.writeFileSync(prefix + '.json', JSON.stringify(report, null, 2));
         console.log('REAL NAGVIS UI CLICK RESULT ' + JSON.stringify(report, null, 2));
+        if (report.mapLinkCount !== 1 || ! report.afterParentUrl || ! report.afterIframeUrl) {
+            throw new Error('NagVis UI map link was not actually clicked');
+        }
+        const parent = new URL(report.afterParentUrl);
+        const child = new URL(report.afterIframeUrl);
+        if (parent.searchParams.get('map') !== 'demo-ham-racks'
+            || parent.searchParams.get('showMenu') !== '1'
+            || parent.searchParams.get('keep') !== 'issue84'
+            || child.searchParams.get('show') !== 'demo-ham-racks'
+            || child.searchParams.get('header_menu') !== '1'
+            || ! report.afterMenuLabels.includes('Hide NagVis Menu')
+            || report.errors.length) {
+            throw new Error('Real NagVis menu selection did not preserve parent map/menu state');
+        }
     } finally {
         await browser.close();
     }
