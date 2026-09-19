@@ -15,6 +15,20 @@ When Icinga Web 2 is served from `/`, its NagVis module uses URLs such as
 `/nagvis/show/map`. A standalone NagVis installation served from `/nagvis`
 can intercept those URLs, causing the Icinga Web 2 module route to fail.
 
+The conflict can also happen in the **opposite direction**: if a request for
+the standalone NagVis frontend, for example
+`/nagvis/frontend/nagvis-js/index.php?mod=Map&act=view&show=demo-overview`,
+gets rewritten or redirected to Icinga Web 2, the iframe may show a second
+Icinga Web 2 sidebar instead of a NagVis map.
+
+If you see nested or duplicated sidebars, inspect the iframe's URL and
+response in your browser's developer tools. Requests for
+`/nagvis/frontend/nagvis-js/index.php` must reach the standalone NagVis
+application, while `/icingaweb2/nagvis/show/map` (for an Icinga Web 2
+installation under `/icingaweb2`) must reach the Icinga Web 2 module.
+Check web-server aliases, rewrite rules and redirects if either request
+is served by the wrong application.
+
 Configure the web server so that Icinga Web 2 and standalone NagVis use
 **distinct URL paths**. For example, keep Icinga Web 2 at `/` and serve the
 standalone NagVis application from `/nagvis-app`. Then set its URL in
