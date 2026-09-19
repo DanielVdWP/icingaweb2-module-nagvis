@@ -39,6 +39,9 @@ const path = require('path');
             moduleResponses,
             menuControl: await page.evaluate(() => document.body.textContent.includes('Hide NagVis Menu')),
         };
+        if (/You are not permitted to access this page|not authenticated|Error \(/i.test(initial.nagvisBodyPreview)) {
+            throw new Error('Initial map is NOT accessible; refusing to count this as a successful browser test');
+        }
         const frame = page.frame({ url: /\/nagvis\/frontend\/nagvis-js\/index\.php/ });
         if (! frame) throw new Error('Actual NagVis iframe was not loaded');
         if (response.status() !== 200 || ! initial.iframeTitle.includes('NagVis')) {
