@@ -89,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           npm install --no-save --ignore-scripts playwright
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - name: Check real Icinga and NagVis pages with correct Apache routing
         shell: bash
         run: |
