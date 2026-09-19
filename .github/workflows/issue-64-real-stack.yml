@@ -22,8 +22,20 @@ jobs:
           sudo apt-get update
           apt-cache policy icingaweb2 nagvis | tee ${RUNNER_TEMP}/package-candidates.txt
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            apache2 libapache2-mod-php icingaweb2 icingacli nagvis icingaweb2-module-nagvis nagvis-demos \
+            apache2 libapache2-mod-php icingaweb2 icingacli nagvis nagvis-demos \
             php-gd php-mbstring php-intl php-curl php-sqlite3 curl
+      - name: Install integration module after Apache starts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo systemctl start apache2
+          if ! sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y icingaweb2-module-nagvis; then
+            echo 'Module package postinst failed; collecting diagnostics'
+            dpkg-query -s icingaweb2-module-nagvis || true
+            sudo cat /var/lib/dpkg/info/icingaweb2-module-nagvis.postinst || true
+            sudo icingacli module list || true
+          fi
+          test -f /usr/share/icingaweb2/modules/nagvis/module.info
       - name: Inspect real installed services, module and routes
         shell: bash
         run: |
