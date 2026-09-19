@@ -39,6 +39,56 @@ a2enconf issue64-external-user
 apache2ctl -t
 systemctl restart apache2
 
+echo "=== Configure packaged NagVis to use actual Icinga Web integration ==="
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+config = Path('/etc/nagvis/nagvis.ini.php')
+text = config.read_text()
+if not re.search(r'(?m)^\[global\]\s*curl -sS -L --max-redirs 5 -c /tmp/issue64.cookies -b /tmp/issue64.cookies \
+  -D "$RUNNER_TEMP/actual-module-headers.txt" -o "$RUNNER_TEMP/actual-module.html" \
+  -w 'Icinga module HTTP %{http_code} final=%{url_effective} bytes=%{size_download}\n' \
+  'http://127.0.0.1/icingaweb2/nagvis/show/map?map=demo-overview'
+echo "=== Real standalone NagVis response ==="
+curl -sS -L --max-redirs 5 -c /tmp/issue64.cookies -b /tmp/issue64.cookies \
+  -D "$RUNNER_TEMP/actual-nagvis-headers.txt" -o "$RUNNER_TEMP/actual-nagvis.html" \
+  -w 'NagVis frontend HTTP %{http_code} final=%{url_effective} bytes=%{size_download}\n' \
+  'http://127.0.0.1/nagvis/frontend/nagvis-js/index.php?mod=Map&act=view&show=demo-overview&header_menu=0'
+echo "=== Evidence in real response bodies ==="
+grep -inE -m 8 'nagvis-iframe|NagVis|icingaweb|login|not authenticated|error|exception' \
+ "$RUNNER_TEMP/actual-module.html" "$RUNNER_TEMP/actual-nagvis.html" \
+ | cut -c1-380 || true
+, text):
+    raise SystemExit('No [global] section in packaged NagVis configuration')
+for option in ('authmodule', 'authorisationmodule', 'logonmodule'):
+    text = re.sub(r'(?m)^\s*' + option + r'\s*=[^\n]*\n', '', text)
+text = re.sub(
+    r'(?m)^(\[global\]\s*\n)',
+    r'\1authmodule="CoreAuthModIcingaweb2"\n'
+    r'authorisationmodule="CoreAuthorisationModIcingaweb2"\n'
+    r'logonmodule="LogonIcingaweb2"\n',
+    text,
+    count=1,
+)
+config.write_text(text)
+
+core = Path('/usr/share/nagvis/share/server/core/functions/core.php')
+source = core.read_text()
+bootstrap = r'''
+use Icinga\Application\EmbeddedWeb;
+require_once 'Icinga/Application/EmbeddedWeb.php';
+require_once EmbeddedWeb::start('/usr/share/icingaweb2', '/etc/icingaweb2')
+    ->getModuleManager()
+    ->getModule('nagvis')
+    ->getLibDir() . '/nagvis-includes/init.inc.php';
+'''
+if not source.startswith('<?php\n'):
+    raise SystemExit('Unexpected packaged NagVis core bootstrap')
+core.write_text(source.replace('<?php\n', '<?php\n' + bootstrap + '\n', 1))
+PY
+php -l /usr/share/nagvis/share/server/core/functions/core.php
+systemctl restart apache2
 echo "=== Real Icinga Web module response ==="
 curl -sS -L --max-redirs 5 -c /tmp/issue64.cookies -b /tmp/issue64.cookies \
   -D "$RUNNER_TEMP/actual-module-headers.txt" -o "$RUNNER_TEMP/actual-module.html" \
