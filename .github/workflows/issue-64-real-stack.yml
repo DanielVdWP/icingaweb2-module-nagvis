@@ -65,6 +65,10 @@ jobs:
               -w "URI $uri HTTP %{http_code} effective=%{url_effective}\\n" \
               "http://127.0.0.1$uri" || true
           done
+      - name: Configure actual Icinga Web module and inspect real responses
+        shell: bash
+        run: |
+          sudo --preserve-env=RUNNER_TEMP bash tests/issue64-actual-stack.sh
       - name: Upload actual stack diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,4 +79,6 @@ jobs:
             ${{ runner.temp }}/stack-inspection.log
             ${{ runner.temp }}/headers*.txt
             ${{ runner.temp }}/body*.html
+            ${{ runner.temp }}/actual-*.html
+            ${{ runner.temp }}/actual-*-headers.txt
           if-no-files-found: warn
