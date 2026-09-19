@@ -62,6 +62,11 @@ text = re.sub(
     count=1,
 )
 config.write_text(text)
+# NagVis caches its parsed configuration by mtime. Force this file to be
+# newer than the cache created by the runner's preliminary HTTP probes.
+import time
+time.sleep(2)
+config.touch()
 
 core = Path('/usr/share/nagvis/share/server/core/functions/core.php')
 source = core.read_text()
