@@ -18,6 +18,9 @@ show_stacktraces = 1
 
 [logging]
 log = php
+
+[cookie]
+path = /
 EOF
 cat > /etc/icingaweb2/modules/nagvis/config.ini <<'EOF'
 [global]
