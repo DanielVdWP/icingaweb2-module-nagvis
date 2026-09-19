@@ -144,4 +144,5 @@ jobs:
             ${{ runner.temp }}/issue84-*.png
             ${{ runner.temp }}/issue84-click-*.json
             ${{ runner.temp }}/issue84-click-*.png
+            ${{ runner.temp }}/issue84-unauthorized-*.png
           if-no-files-found: warn
