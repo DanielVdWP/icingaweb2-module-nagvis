@@ -126,6 +126,13 @@ jobs:
           node --check /usr/share/icingaweb2/modules/nagvis/public/js/module.js
           node tests/issue84-browser.js pr84
           node tests/issue84-real-ui-click.js pr84 || echo "NagVis UI click probe incomplete (pr84); see logs"
+      - name: Capture Apache and NagVis authorization diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          sudo tail -n 150 /var/log/apache2/error.log | tee "$RUNNER_TEMP/issue84-apache-errors.log" || true
+          sudo grep -nE '^(authmodule|authorisationmodule|logonmodule|headermenu|mapurl|urltarget)[[:space:]]*=' /etc/nagvis/nagvis.ini.php | tee "$RUNNER_TEMP/issue84-nagvis-config.log" || true
       - name: Upload actual stack diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -145,4 +152,6 @@ jobs:
             ${{ runner.temp }}/issue84-click-*.json
             ${{ runner.temp }}/issue84-click-*.png
             ${{ runner.temp }}/issue84-unauthorized-*.png
+            ${{ runner.temp }}/issue84-apache-errors.log
+            ${{ runner.temp }}/issue84-nagvis-config.log
           if-no-files-found: warn
