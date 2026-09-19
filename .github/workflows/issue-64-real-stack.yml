@@ -22,7 +22,7 @@ jobs:
           sudo apt-get update
           apt-cache policy icingaweb2 nagvis | tee ${RUNNER_TEMP}/package-candidates.txt
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            apache2 libapache2-mod-php icingaweb2 icingacli nagvis \
+            apache2 libapache2-mod-php icingaweb2 icingacli nagvis icingaweb2-module-nagvis nagvis-demos \
             php-gd php-mbstring php-intl php-curl php-sqlite3 curl
       - name: Inspect real installed services, module and routes
         shell: bash
@@ -31,10 +31,18 @@ jobs:
           {
             date -u
             php -v
-            dpkg-query -W icingaweb2 nagvis apache2
+            dpkg-query -W icingaweb2 nagvis apache2 icingaweb2-module-nagvis
             dpkg -L nagvis | grep -E '(index.php|nagvis.ini.php|apache|config)' | head -70
             ls -la /usr/share/icingaweb2/modules/
             find /etc/apache2 -maxdepth 2 -type f -name '*nagvis*' -o -name '*icinga*'
+            echo '--- APACHE ROUTES ---'
+            cat /etc/apache2/conf-available/icingaweb2.conf /etc/apache2/conf-available/nagvis.conf
+            echo '--- NAGVIS MAIN CONFIG NONSECRET FIELDS ---'
+            grep -E '^(authmodule|authorisationmodule|logonmodule|headermenu|mapurl|htmlcgi|baseurl)' /etc/nagvis/nagvis.ini.php || true
+            echo '--- NAGVIS ENTRY FILE ---'
+            sed -n '1,50p' /usr/share/nagvis/share/server/core/functions/core.php
+            echo '--- MODULE INFO ---'
+            cat /usr/share/icingaweb2/modules/nagvis/module.info
             sudo apache2ctl -t
           } 2>&1 | tee ${RUNNER_TEMP}/stack-inspection.log
           sudo systemctl start apache2
