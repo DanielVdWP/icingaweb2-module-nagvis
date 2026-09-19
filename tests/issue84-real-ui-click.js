@@ -28,7 +28,25 @@ const path = require('path');
         const hamburg = frame.getByText('Demo: 1 Datacenter Hamburg', { exact: true }).first();
         const targetCount = await hamburg.count();
         report.mapLinkCount = targetCount;
-        if (targetCount) {
+        report.demoHamburgHtml = await frame.locator('body').evaluate(el => {
+            const s = el.innerHTML, i = s.indexOf('Demo: 1 Datacenter Hamburg');
+            return i < 0 ? 'not found in DOM' : s.slice(Math.max(0,i-650),i+650);
+        });
+        report.mapSelectOptions = await frame.locator('select option').evaluateAll(nodes => nodes
+            .filter(el => /Hamburg|Germany/i.test(el.textContent))
+            .map(el => ({ html: el.outerHTML, select: el.closest('select')?.outerHTML.slice(0,850) })));
+
+        if (! targetCount && report.mapSelectOptions.some(el => /Hamburg/.test(el.html))) {
+            const select = frame.locator('select').filter({ hasText: 'Demo: 1 Datacenter Hamburg' }).first();
+            await select.selectOption({ label: 'Demo: 1 Datacenter Hamburg' });
+            await page.waitForTimeout(2000);
+            report.afterParentUrl = page.url();
+            const iframeElement = page.locator('#nagvis-iframe');
+            report.afterIframeUrl = await iframeElement.count()
+                ? await iframeElement.evaluate(el => el.contentWindow.location.href).catch(() => null) : null;
+            report.afterTitle = await page.title();
+            report.afterMenuLabels = await page.locator('a').evaluateAll(els => els.map(e=>e.textContent.trim()).filter(t => t.includes('NagVis Menu')));
+        } else if (targetCount) {
             const target = hamburg;
             const isVisible = await target.isVisible();
             report.mapLinkInitiallyVisible = isVisible;
