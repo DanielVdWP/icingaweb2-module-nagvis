@@ -30,8 +30,14 @@ const path = require('path');
             iframeUrl: await page.locator('#nagvis-iframe').evaluate(el => el.contentWindow.location.href),
             iframeTitle: await iframe.locator('title').textContent().catch(() => ''),
             modulePresent: await page.evaluate(() => typeof Icinga !== 'undefined' && !!Icinga.availableModules.nagvis),
+            implementation: await page.evaluate(() => Icinga.availableModules.nagvis.prototype.setCurrentMap.toString()),
+            menuLabels: await page.locator('a, button').evaluateAll(nodes => nodes
+                .map(el => ({ label: el.textContent.trim(), href: el.getAttribute('href') }))
+                .filter(el => /NagVis Menu/i.test(el.label))),
+            nagvisBodyPreview: await iframe.locator('body').innerText().then(t => t.slice(0, 700)),
+
             moduleResponses,
-            menuControl: await page.locator('body').innerText().then(t => t.includes('Hide NagVis Menu')),
+            menuControl: await page.evaluate(() => document.body.textContent.includes('Hide NagVis Menu')),
         };
         const frame = page.frame({ url: /\/nagvis\/frontend\/nagvis-js\/index\.php/ });
         if (! frame) throw new Error('Actual NagVis iframe was not loaded');
@@ -55,7 +61,7 @@ const path = require('path');
             childUrl: page.frames().find(f => f.parentFrame() === page.mainFrame() && f.name() === frame.name())?.url(),
             iframeUrl: await page.locator('#nagvis-iframe').evaluate(el => el.contentWindow.location.href),
             iframeTitle: await page.frameLocator('#nagvis-iframe').locator('title').textContent().catch(() => ''),
-            menuControl: await page.locator('body').innerText().then(t => t.includes('Hide NagVis Menu')),
+            menuControl: await page.evaluate(() => document.body.textContent.includes('Hide NagVis Menu')),
         };
 
         const result = { variant, initial, after, errors };
@@ -67,10 +73,13 @@ const path = require('path');
         if (! initial.modulePresent) throw new Error('NagVis module JavaScript not registered');
         if (! initial.menuControl) throw new Error('Show NagVis Menu was not enabled on initial page');
         if (variant === 'baseline') {
-            if (after.parentMap === 'issue84-second') {
-                throw new Error('Baseline unexpectedly synchronized the selected map');
+            if (! initial.implementation.includes('removeUrlParams')) {
+                throw new Error('Baseline did not load upstream main implementation');
             }
         } else {
+            if (! initial.implementation.includes('url.searchParams.set')) {
+                throw new Error('PR test did not load PR 84 implementation');
+            }
             if (after.parentMap !== 'issue84-second' ||
                 after.parentShowMenu !== '1' ||
                 after.parentKeep !== 'issue84' ||
