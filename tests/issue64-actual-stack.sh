@@ -91,8 +91,35 @@ new = ("        error_log('issue84-permissions ' . json_encode(array("
 if src.count(old) != 1:
     raise SystemExit('Expected a single map-permission return statement')
 p.write_text(src.replace(old, new))
+
+q = Path('/usr/share/icingaweb2/modules/nagvis/library/nagvis-includes/CoreAuthModIcingaweb2.php')
+auth = q.read_text()
+old_auth = """        $this->auth = Auth::getInstance();
+        if ($this->auth->isAuthenticated()) {"""
+new_auth = """        $this->auth = Auth::getInstance();
+        file_put_contents('/tmp/issue84-auth-events', 'CoreAuth constructor: authenticated='
+            . ($this->auth->isAuthenticated() ? 'yes' : 'no')
+            . ' icinga-cookie=' . (isset($_COOKIE['Icingaweb2']) ? 'yes' : 'no')
+            . ' external-user=' . ($_SERVER['REMOTE_USER'] ?? '(missing)')
+            . PHP_EOL, FILE_APPEND);
+        if ($this->auth->isAuthenticated()) {"""
+if auth.count(old_auth) != 1:
+    raise SystemExit('Expected CoreAuth constructor not found')
+q.write_text(auth.replace(old_auth, new_auth))
+
+# Record authorization setup separately from the existing instrumentation.
+prefix = "        $this->auth = Auth::getInstance();"
+p_auth = p.read_text()
+if p_auth.count(prefix) != 1:
+    raise SystemExit('Expected CoreAuthorisation constructor not found')
+p.write_text(p_auth.replace(prefix, prefix + """
+        file_put_contents('/tmp/issue84-auth-events',
+            'CoreAuthorisation constructor: authenticated='
+            . ($this->auth->isAuthenticated() ? 'yes' : 'no') . PHP_EOL,
+            FILE_APPEND);""", 1))
 PY
 php -l /usr/share/icingaweb2/modules/nagvis/library/nagvis-includes/CoreAuthorisationModIcingaweb2.php
+php -l /usr/share/icingaweb2/modules/nagvis/library/nagvis-includes/CoreAuthModIcingaweb2.php
 echo "=== Actual NagVis authentication configuration ==="
 grep -E '^(authmodule|authorisationmodule|logonmodule|headermenu|urltarget|mapurl)\s*=' /etc/nagvis/nagvis.ini.php || true
 systemctl restart apache2
