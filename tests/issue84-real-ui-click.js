@@ -15,7 +15,15 @@ const path = require('path');
         await frame.locator('body').waitFor();
         await page.waitForTimeout(900);
         const nagvisPageText = await frame.locator('body').innerText();
-        if (/You are not permitted to access this page/.test(nagvisPageText)) {
+        const authEvidence = {
+            parentUserDisplay: (await page.locator('body').innerText()).slice(0,250),
+            nagvisText: nagvisPageText.slice(0,1100),
+            cookieMeta: (await page.context().cookies()).map(({ name, domain, path, sameSite }) => ({name, domain, path, sameSite})),
+            iframeLocation: await page.locator('#nagvis-iframe').evaluate(el => el.contentWindow.location.href),
+        };
+        console.log('AUTH EVIDENCE ' + JSON.stringify(authEvidence));
+        if (/You are not permitted to access this page|not authenticated|Error \(/i.test(nagvisPageText)) {
+            await page.screenshot({ path: path.join(process.env.RUNNER_TEMP || process.cwd(), 'issue84-unauthorized-' + variant + '.png'), fullPage: true });
             throw new Error('NagVis authorization denied; cannot test real map menu');
         }
         const openMenu = frame.getByText('Open', { exact: true }).first();
