@@ -175,7 +175,8 @@ Verify that:
 
 - Both the Icinga Web 2 and standalone NagVis URLs require the intended
   authentication and the web server makes the **same authenticated username**
-  available to PHP as `REMOTE_USER` or `REDIRECT_REMOTE_USER`. For PHP-FPM
+  available to PHP in the same identity variable used for the Icinga Web 2
+  login (`REMOTE_USER` or `REDIRECT_REMOTE_USER`). For PHP-FPM
   setups, ensure the verified web-server identity is passed to the PHP handler
   for **both** applications.
 - The Icinga Web 2 session cookie reaches the standalone NagVis URL (see the
