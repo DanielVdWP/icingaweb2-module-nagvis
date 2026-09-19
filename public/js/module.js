@@ -22,36 +22,49 @@
         },
 
         frameLoaded: function (event) {
-            var currentMap;
             var icinga = this.module.icinga;
-            var $iframe = $('#nagvis-iframe');
-            var matchNagvis = /[\?&]show=([^\&]+)/;
-            var matchIcinga = /[\?&]map=([^\&]+)/;
-
+            var frame = event.currentTarget;
             icinga.logger.debug('Nagvis frame loaded');
 
-            if (! $iframe.contents().length) {
+            if (! frame || ! frame.contentWindow) {
                 return;
             }
 
-            if (currentMap = $iframe.contents()[0].location.search.match(matchNagvis)) {
-                currentMap = currentMap[1];
+            var framePath;
+            var frameSearch;
+            try {
+                framePath = frame.contentWindow.location.pathname;
+                frameSearch = frame.contentWindow.location.search;
+            } catch (e) {
+                // A different-origin NagVis installation cannot expose its URL to us.
+                icinga.logger.debug('Nagvis frame location is not accessible; skipping map sync');
+                return;
             }
-            if (shownMap = document.location.search.match(matchIcinga)) {
-                shownMap = shownMap[1];
+
+            if (! /\/frontend\/nagvis-js\/index\.php$/.test(framePath)) {
+                return;
             }
-            if (currentMap !== null && shownMap !== currentMap) {
+
+            var params = new URLSearchParams(frameSearch);
+            if (params.get('mod') !== 'Map') {
+                return;
+            }
+
+            var currentMap = params.get('show');
+            var shownMap = new URLSearchParams(window.location.search).get('map');
+            if (currentMap !== null && currentMap !== '' && shownMap !== currentMap) {
                 this.setCurrentMap(currentMap);
             }
         },
 
         setCurrentMap: function (map) {
-            var url = icinga.utils.removeUrlParams(document.location.pathname + document.location.search, [ 'map' ]);
-            this.module.icinga.logger.debug('URL AFTER PARAM REMOVE: ' + url);
-            url = icinga.utils.addUrlParams(url, { map: map });
+            var url = new URL(window.location.href);
+            url.searchParams.set('map', map);
             this.module.icinga.logger.info('Setting current map', map);
-            location.href = url;
-	}
+            // Preserve showMenu when reloading, so the NagVis iframe also gets
+            // the requested header_menu setting for the newly selected map.
+            window.location.assign(url.toString());
+        }
 
     };
 
