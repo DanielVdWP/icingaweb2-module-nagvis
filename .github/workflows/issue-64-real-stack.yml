@@ -1,0 +1,58 @@
+name: Issue 64 real-stack reproduction
+on:
+  push:
+    branches:
+      - test/issue-64-real-integration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out actual NagVis module
+        uses: actions/checkout@v4
+      - name: Install actual Icinga Web 2 and NagVis packages
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          apt-cache policy icingaweb2 nagvis | tee ${RUNNER_TEMP}/package-candidates.txt
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            apache2 libapache2-mod-php icingaweb2 icingacli nagvis \
+            php-gd php-mbstring php-intl php-curl php-sqlite3 curl
+      - name: Inspect real installed services, module and routes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          {
+            date -u
+            php -v
+            dpkg-query -W icingaweb2 nagvis apache2
+            dpkg -L nagvis | grep -E '(index.php|nagvis.ini.php|apache|config)' | head -70
+            ls -la /usr/share/icingaweb2/modules/
+            find /etc/apache2 -maxdepth 2 -type f -name '*nagvis*' -o -name '*icinga*'
+            sudo apache2ctl -t
+          } 2>&1 | tee ${RUNNER_TEMP}/stack-inspection.log
+          sudo systemctl start apache2
+          for uri in / /icingaweb2 /nagvis /nagvis/frontend/nagvis-js/index.php; do
+            name="$(printf '%s' "$uri" | tr '/' '_')"
+            curl -sS --max-time 15 -D "${RUNNER_TEMP}/headers${name}.txt" \
+              -o "${RUNNER_TEMP}/body${name}.html" \
+              -w "URI $uri HTTP %{http_code} effective=%{url_effective}\\n" \
+              "http://127.0.0.1$uri" || true
+          done
+      - name: Upload actual stack diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-64-stack-diagnostics
+          path: |
+            ${{ runner.temp }}/package-candidates.txt
+            ${{ runner.temp }}/stack-inspection.log
+            ${{ runner.temp }}/headers*.txt
+            ${{ runner.temp }}/body*.html
+          if-no-files-found: warn
