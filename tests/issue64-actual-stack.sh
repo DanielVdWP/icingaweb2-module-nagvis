@@ -78,6 +78,23 @@ if not source.startswith('<?php\n'):
 core.write_text(source.replace('<?php\n', '<?php\n' + bootstrap + '\n', 1))
 PY
 php -l /usr/share/nagvis/share/server/core/functions/core.php
+# Read-only diagnostic instrumentation in the DISPOSABLE runner; not a product patch.
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path('/usr/share/icingaweb2/modules/nagvis/library/nagvis-includes/CoreAuthorisationModIcingaweb2.php')
+src = p.read_text()
+old = "        return $perms;\n"
+new = ("        error_log('issue84-permissions ' . json_encode(array("
+       "'auth' => $this->auth->isAuthenticated(), 'modules' => array_keys($perms),"
+       " 'map' => $perms['Map'] ?? null)));\n" + old)
+if src.count(old) != 1:
+    raise SystemExit('Expected a single map-permission return statement')
+p.write_text(src.replace(old, new))
+PY
+php -l /usr/share/icingaweb2/modules/nagvis/library/nagvis-includes/CoreAuthorisationModIcingaweb2.php
+echo "=== Actual NagVis authentication configuration ==="
+grep -E '^(authmodule|authorisationmodule|logonmodule|headermenu|urltarget|mapurl)\s*=' /etc/nagvis/nagvis.ini.php || true
 systemctl restart apache2
 echo "=== Real Icinga Web module response ==="
 curl -sS -L --max-redirs 5 -c /tmp/issue64.cookies -b /tmp/issue64.cookies \
