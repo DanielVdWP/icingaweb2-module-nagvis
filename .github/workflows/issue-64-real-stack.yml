@@ -84,6 +84,38 @@ jobs:
         shell: bash
         run: |
           sudo --preserve-env=RUNNER_TEMP bash tests/issue64-actual-stack.sh
+      - name: Install Chromium browser for real-app navigation
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --ignore-scripts playwright
+          npx playwright install --with-deps chromium
+      - name: Check real Icinga and NagVis pages with correct Apache routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/issue64-browser.js correct
+      - name: Intentionally route the actual NagVis iframe URL into actual Icinga Web
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat <<'CONF' | sudo tee /etc/apache2/conf-available/issue64-misroute.conf
+          RedirectMatch 302 "^/nagvis/frontend/nagvis-js/index\.php$" "/icingaweb2/dashboard"
+          CONF
+          sudo a2enconf issue64-misroute
+          sudo apache2ctl -t
+          sudo systemctl reload apache2
+          status=$(curl -sS -D "${RUNNER_TEMP}/misrouted-headers.txt" -o /dev/null \
+            -w '%{http_code}' \
+            'http://127.0.0.1/nagvis/frontend/nagvis-js/index.php?mod=Map&act=view&show=demo-overview')
+          printf 'NagVis iframe URL after intentional misroute: HTTP %s\n' "$status"
+          test "$status" = 302
+          grep -i '^Location: /icingaweb2/dashboard' "${RUNNER_TEMP}/misrouted-headers.txt"
+      - name: Check whether the real browser renders nested Icinga Web
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/issue64-browser.js misrouted
       - name: Upload actual stack diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,4 +128,9 @@ jobs:
             ${{ runner.temp }}/body*.html
             ${{ runner.temp }}/actual-*.html
             ${{ runner.temp }}/actual-*-headers.txt
+            ${{ runner.temp }}/correct.png
+            ${{ runner.temp }}/misrouted.png
+            ${{ runner.temp }}/correct.json
+            ${{ runner.temp }}/misrouted.json
+            ${{ runner.temp }}/misrouted-headers.txt
           if-no-files-found: warn
