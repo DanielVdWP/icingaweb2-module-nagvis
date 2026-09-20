@@ -38,12 +38,25 @@ function runCase(string $name, callable $callback): array {
         return ['ok'=>false,'exception'=>get_class($e),'message'=>$e->getMessage()];
     }
 }
+$group = new class('ci-group') {
+    public function __construct(private string $name) {}
+    public function getType(): string { return 'hostgroup'; }
+    public function getName(): string { return $this->name; }
+    public function getServiceDescription(): string { return ''; }
+    public function hasExcludeFilters(bool $isCountQuery): bool { return false; }
+    public function getExcludeFilter(bool $isCountQuery): string { return ''; }
+};
+function groupCounts(array $result): array {
+    if (! isset($result['ci-group']['counts'])) return ['missing_group'=>true,'result'=>$result];
+    return array_map(static fn($bucket) => (int) ($bucket['normal'] ?? 0), $result['ci-group']['counts']);
+}
 $cases = [
   'hosts' => fn() => $backend->getObjects('host'),
   'services' => fn() => $backend->getObjects('service'),
   'hostgroups' => fn() => $backend->getObjects('hostgroup'),
   'hostgroup_members' => fn() => $backend->getHostNamesInHostgroup('ci-group'),
   'no_parent' => fn() => $backend->getHostNamesWithNoParent(),
+  'group_counts' => fn() => groupCounts($backend->getHostgroupStateCounts([[$group]], 0, [])),
 ];
 $report=['variant'=>$variant,'role'=>$roleType,'cases'=>[]];
 foreach ($cases as $name=>$f) $report['cases'][$name] = runCase($name,$f);
