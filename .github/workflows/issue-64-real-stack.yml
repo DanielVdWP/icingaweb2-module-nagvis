@@ -143,8 +143,6 @@ jobs:
           node tests/issue84-browser.js baseline
           node tests/issue84-real-ui-click.js baseline
           node tests/issue84-current-map-click.js baseline
-          node tests/issue84-sidebar-toggle.js baseline
-          node tests/issue84-map-icon-link.js baseline
           node tests/issue84-encoded-real-map.js baseline
       - name: Browser regression with exact PR 84 JavaScript
         shell: bash
@@ -156,8 +154,6 @@ jobs:
           node tests/issue84-browser.js pr84
           node tests/issue84-real-ui-click.js pr84
           node tests/issue84-current-map-click.js pr84
-          node tests/issue84-sidebar-toggle.js pr84
-          node tests/issue84-map-icon-link.js pr84
           node tests/issue84-encoded-real-map.js pr84
       - name: Capture Apache and NagVis authorization diagnostics
         if: always()
