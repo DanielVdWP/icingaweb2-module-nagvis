@@ -68,8 +68,16 @@ jobs:
           git show origin/fix/issue-79-hostgroup-options:library/nagvis-includes/GlobalBackendicingadb.php > /tmp/nagvis-pr-versions/pr80.php
           git show origin/fix/issue-75-icingadb-automap:library/nagvis-includes/GlobalBackendicingadb.php > /tmp/nagvis-pr-versions/pr81.php
           php -l tests/integration/icingadb-verify.php
-          for variant in baseline pr80 pr81; do
-            NAGVIS_VARIANT="$variant" NAGVIS_BACKEND_FILE="/tmp/nagvis-pr-versions/$variant.php" \
+          for variant in baseline pr80 baseline81 pr81 pr81old; do
+            if [ "$variant" = "pr81old" ]; then
+              sudo mysql icingadb -e "UPDATE icingadb_schema SET version=6"
+              backend_file="/tmp/nagvis-pr-versions/pr81.php"
+            elif [ "$variant" = "baseline81" ]; then
+              backend_file="/tmp/nagvis-pr-versions/baseline.php"
+            else
+              backend_file="/tmp/nagvis-pr-versions/$variant.php"
+            fi
+            NAGVIS_VARIANT="$variant" NAGVIS_BACKEND_FILE="$backend_file" \
               sudo --preserve-env=NAGVIS_VARIANT,NAGVIS_BACKEND_FILE php tests/integration/icingadb-verify.php \
               | tee "/tmp/icingadb-$variant-results.txt"
           done
