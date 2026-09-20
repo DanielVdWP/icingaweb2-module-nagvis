@@ -17,6 +17,7 @@ foreach ([
 $paths = [
     'Icinga\\Module\\Icingadb\\' => '/usr/share/icingaweb2/modules/icingadb/library/Icingadb/',
     'Icinga\\Module\\Nagvis\\' => __DIR__ . '/../../library/Nagvis/',
+    'Icinga\\' => '/usr/share/php/Icinga/',
 ];
 spl_autoload_register(static function ($class) use ($paths) {
     foreach ($paths as $prefix => $base) {
