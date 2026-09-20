@@ -3,6 +3,7 @@
 // SPDX-FileCopyrightText: 2022 Icinga GmbH <https://icinga.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use Icinga\Module\Icingadb\Common\Auth;
 use Icinga\Module\Icingadb\Common\Backend;
 use Icinga\Module\Icingadb\Common\Database;
 use Icinga\Module\Icingadb\Model\Host;
@@ -23,6 +24,7 @@ use ipl\Web\Filter\QueryString;
 
 class GlobalBackendicingadb implements GlobalBackendInterface
 {
+    use Auth;
     use Database;
 
     const HOST_SERVICE_SEPARATOR = '~~';
@@ -423,6 +425,21 @@ class GlobalBackendicingadb implements GlobalBackendInterface
         return $this->getDirectParentNamesByHostName($hostName);
     }
 
+    /**
+     * Apply the same object restrictions as Icinga DB Web before fetching
+     * any dependency data. If authorization fails, return no relationships.
+     */
+    private function applyDependencyRestrictions(Query $query): bool
+    {
+        try {
+            $this->applyRestrictions($query);
+            return true;
+        } catch (\Throwable $e) {
+            error_log('nagvis-icingadb: cannot apply dependency restrictions: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     private function getDirectRelatedHostNames(string $hostName, bool $parents): array
     {
         if (
@@ -433,11 +450,16 @@ class GlobalBackendicingadb implements GlobalBackendInterface
             return [];
         }
 
-        $host = Host::on($this->getDb())
+        $hostQuery = Host::on($this->getDb())
             ->columns(['id'])
-            ->filter(Filter::equal('name', $hostName))
-            ->first();
+            ->filter(Filter::equal('name', $hostName));
 
+        // The starting host must be visible to the current Icinga DB Web user.
+        if (! $this->applyDependencyRestrictions($hostQuery)) {
+            return [];
+        }
+
+        $host = $hostQuery->first();
         if (! $host) {
             return [];
         }
@@ -448,6 +470,11 @@ class GlobalBackendicingadb implements GlobalBackendInterface
                 Filter::like('host.id', '*'),
                 Filter::unlike('service.id', '*')
             ));
+
+        // Do not reveal parent/child host names excluded by the user's role.
+        if (! $this->applyDependencyRestrictions($nodes)) {
+            return [];
+        }
 
         $results = [];
         foreach ($nodes as $node) {
