@@ -70,9 +70,10 @@ jobs:
           php -l /tmp/issue77-pr78.php
           php -l /tmp/issue77-pr81.php
           php -l /tmp/issue77-combined.php
+          php -l /tmp/issue77-guarded.php
           php -l tests/integration/issue77-role-visibility.php
           failed=0
-          for variant in main pr78 pr81 combined; do
+          for variant in main pr78 pr81 combined guarded; do
             for role in unrestricted objects hosts services combined; do
               set +e
               NAGVIS_VARIANT="$variant" NAGVIS_ROLE="$role" NAGVIS_BACKEND_FILE="/tmp/issue77-$variant.php" \
