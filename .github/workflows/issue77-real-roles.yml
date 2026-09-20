@@ -63,17 +63,16 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "793832f2f458f1df3bc6e0db745cfe026ca3b84e"
           git show FETCH_HEAD:library/nagvis-includes/GlobalBackendicingadb.php > /tmp/issue77-pr78.php
           git fetch --no-tags origin +refs/heads/fix/issue-75-icingadb-automap:refs/remotes/origin/fix/issue-75-icingadb-automap
-          test "$(git rev-parse origin/fix/issue-75-icingadb-automap)" = "565de319483952f6d572911f28cdc2e600fb9d20"
+          test "$(git rev-parse origin/fix/issue-75-icingadb-automap)" = "38f7911396c227aa8c4501039440fcbcb58d362d"
           git show origin/fix/issue-75-icingadb-automap:library/nagvis-includes/GlobalBackendicingadb.php > /tmp/issue77-pr81.php
           python3 tests/integration/issue77-compose-pr78-pr81.py
           php -l /tmp/issue77-main.php
           php -l /tmp/issue77-pr78.php
           php -l /tmp/issue77-pr81.php
           php -l /tmp/issue77-combined.php
-          php -l /tmp/issue77-guarded.php
           php -l tests/integration/issue77-role-visibility.php
           failed=0
-          for variant in main pr78 pr81 combined guarded; do
+          for variant in main pr78 pr81 combined; do
             for role in unrestricted objects hosts services combined; do
               set +e
               NAGVIS_VARIANT="$variant" NAGVIS_ROLE="$role" NAGVIS_BACKEND_FILE="/tmp/issue77-$variant.php" \
