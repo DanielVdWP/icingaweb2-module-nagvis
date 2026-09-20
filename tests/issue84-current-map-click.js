@@ -35,16 +35,27 @@ const path = require('path');
         report.sameMapAnchor=await sameMap.evaluate(el=>el.outerHTML.slice(0,600));
         if(/header_menu=1/.test(report.sameMapAnchor))
             throw Error('Menu link unexpectedly propagates header_menu=1');
+        const initialFrame = page.frame({ url: /\/nagvis\/frontend\/nagvis-js\/index\.php/ });
+        const reloadingFrame = page.waitForEvent('framenavigated', {
+            predicate: f => f === initialFrame
+                && new URL(f.url()).searchParams.get('show') === 'demo-overview'
+                && !new URL(f.url()).searchParams.has('header_menu'),
+            timeout: 12000
+        });
         await sameMap.click();
+        // Wait for the real first navigation before inspecting the iframe:
+        // otherwise the initial header_menu=1 page causes a false positive.
+        await reloadingFrame;
         if (variant === 'pr84') {
-            // The first NagVis navigation drops header_menu. The patch must
-            // restore it without reloading Icinga Web or creating a loop.
             await page.waitForFunction(() => {
                 const child = document.querySelector('#nagvis-iframe');
-                return child && new URL(child.contentWindow.location.href)
-                    .searchParams.get('header_menu') === '1'
-                    && child.contentDocument.body.textContent.includes('Open');
-            }, {timeout: 12000});
+                if (!child || !child.contentDocument
+                    || child.contentDocument.readyState !== 'complete') return false;
+                const url = new URL(child.contentWindow.location.href);
+                return url.searchParams.get('header_menu') === '1'
+                    && child.contentDocument.body.innerText.includes('Open');
+            }, null, {timeout: 12000});
+            await page.waitForTimeout(300);
         } else {
             await page.waitForTimeout(1250);
         }
