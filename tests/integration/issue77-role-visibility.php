@@ -97,12 +97,12 @@ check('hostgroup WARNING count ' . $variant . ' ' . $roleType,
 $children = $report['cases']['automap_children_of_parent']['data'];
 if (in_array($variant,['main','pr78'],true)) {
     check('existing Automap functions have no implementation ' . $variant, $children, []);
-} elseif ($roleType === 'unrestricted' || $variant === 'pr81') {
-    check('unfiltered PR81 returns real children', $children, ['ci-child','ci-child2']);
+} elseif ($roleType === 'unrestricted' || $roleType === 'services') {
+    check('visible children remain available to authorized role', $children, ['ci-child','ci-child2']);
 } elseif (in_array($roleType,['objects','hosts','combined'],true)) {
-    // Intended safety criterion for the PR78+PR81 composite.
-    // Neither child host is visible to the current user.
     check('restricted Automap MUST NOT disclose hidden children', $children, []);
+    check('restricted Automap MUST NOT disclose a hidden starting host',
+        $report['cases']['automap_parents_of_child']['data'], []);
 }
 echo 'ALL PERMISSION ASSERTIONS PASSED ' . $variant . ' ' . $roleType . PHP_EOL;
 
