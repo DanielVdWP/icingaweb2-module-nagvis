@@ -64,3 +64,45 @@ $report=['variant'=>$variant,'role'=>$roleType,'cases'=>[]];
 foreach ($cases as $name=>$f) $report['cases'][$name] = runCase($name,$f);
 file_put_contents('/tmp/issue77-'.$variant.'-'.$roleType.'.json', json_encode($report,JSON_PRETTY_PRINT|JSON_INVALID_UTF8_SUBSTITUTE));
 echo 'REPORT ' . json_encode(['variant'=>$variant,'role'=>$roleType,'errors'=>array_keys(array_filter($report['cases'],fn($x)=>!$x['ok']))]) . PHP_EOL;
+
+function check(string $label, mixed $actual, mixed $expected): void {
+    if ($actual !== $expected) {
+        echo 'FAIL ' . $label . ' expected=' . json_encode($expected)
+            . ' actual=' . json_encode($actual) . PHP_EOL;
+        throw new RuntimeException('ROLE RESTRICTION REGRESSION: ' . $label);
+    }
+    echo 'PASS ' . $label . ' ' . json_encode($actual) . PHP_EOL;
+}
+foreach ($report['cases'] as $name=>$case) {
+    if (! $case['ok']) throw new RuntimeException('A real ORM method failed: ' . $name . ': ' . $case['message']);
+}
+$names = static fn(array $items): array => array_map(static fn(array $item): string => $item['name1'], $items);
+$visibilityExpected = ['ci-child','ci-child2','ci-parent'];
+$visible = $report['cases']['hosts']['data'];
+$serviceVisible = $report['cases']['services']['data'];
+$normal = $roleType === 'unrestricted' || $variant === 'main' || $variant === 'pr81';
+$restrictHosts = in_array($roleType, ['objects','hosts','combined'], true) && ! $normal;
+$restrictServices = in_array($roleType, ['services','combined'], true) && ! $normal;
+check('host picker ' . $variant . ' ' . $roleType,
+    $names($visible), $restrictHosts ? ['ci-parent'] : $visibilityExpected);
+check('service picker ' . $variant . ' ' . $roleType, count($serviceVisible),
+    $restrictHosts ? 1 : ($restrictServices ? 2 : 3));
+$counts = $report['cases']['group_counts']['data'];
+check('hostgroup UP count ' . $variant . ' ' . $roleType,
+    $counts[UP] ?? -1, $restrictHosts ? 1 : 2);
+check('hostgroup CRITICAL count ' . $variant . ' ' . $roleType,
+    $counts[CRITICAL] ?? -1, $restrictHosts ? 1 : 2);
+check('hostgroup WARNING count ' . $variant . ' ' . $roleType,
+    $counts[WARNING] ?? -1, $restrictHosts || $restrictServices ? 0 : 1);
+$children = $report['cases']['automap_children_of_parent']['data'];
+if (in_array($variant,['main','pr78'],true)) {
+    check('existing Automap functions have no implementation ' . $variant, $children, []);
+} elseif ($roleType === 'unrestricted' || $variant === 'pr81') {
+    check('unfiltered PR81 returns real children', $children, ['ci-child','ci-child2']);
+} elseif (in_array($roleType,['objects','hosts','combined'],true)) {
+    // Intended safety criterion for the PR78+PR81 composite.
+    // Neither child host is visible to the current user.
+    check('restricted Automap MUST NOT disclose hidden children', $children, []);
+}
+echo 'ALL PERMISSION ASSERTIONS PASSED ' . $variant . ' ' . $roleType . PHP_EOL;
+
