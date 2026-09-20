@@ -36,7 +36,11 @@ const path = require('path');
             });
         });
         // Select a link physically contained by the NagVis side menu, not Open ->.
-        const link = frame.locator('#sb-maps').locator('xpath=..').locator('a[href*="show=demo-ham-racks"]').first();
+        // NagVis starts both nested map-menu levels collapsed. Expand them through
+        // their actual UI controls, then click the visible second-level link.
+        await tree.click();
+        await frame.locator('#sb-demo-overview').click();
+        const link = frame.locator('#sb-demo-overview-childs a[href*="show=demo-ham-racks"]').first();
         report.sidebarLinkCount = await link.count();
         if (report.sidebarLinkCount !== 1) {
             throw Error('Could not identify Hamburg link inside the real NagVis left sidebar');
