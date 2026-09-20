@@ -23,7 +23,9 @@ jobs:
             icingadb-web mariadb-server php-mysql php-cli php-mbstring php-intl php-xml curl git
           sudo systemctl start mariadb
           php -v
-          dpkg-query -W icingadb-web icingaweb2 mariadb-server icinga-php-library
+          dpkg-query -W icingadb-web icingaweb2 mariadb-server icinga-php-library icinga-php-thirdparty
+          dpkg -L icinga-php-library | head -30
+          dpkg -L icinga-php-thirdparty | head -30
           find /usr/share/icingaweb2/modules/icingadb -maxdepth 2 -type f -name module.info -print -exec cat {} \;
           echo '=== upstream 1.4.0 module ==='
           git clone -q --depth=1 --branch v1.4.0 https://github.com/Icinga/icingadb-web.git /tmp/icingadb-web-v140
@@ -33,7 +35,7 @@ jobs:
           curl -fsSL --retry 3 https://raw.githubusercontent.com/Icinga/icingadb/v1.5.1/schema/mysql/schema.sql -o /tmp/icingadb-schema.sql
           sudo mysql -e "CREATE DATABASE icingadb CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;"
           sudo mysql icingadb < /tmp/icingadb-schema.sql
-          sudo mysql icingadb -e "SELECT * FROM schema_version; SHOW TABLES LIKE 'dependency_%';"
+          sudo mysql icingadb -e "SELECT * FROM icingadb_schema; SHOW TABLES LIKE 'dependency_%';"
           for t in environment host hostgroup hostgroup_member host_state service service_state dependency_node dependency_edge; do
             echo "=== $t ==="
             sudo mysql icingadb -e "SHOW CREATE TABLE $t\\G" | sed -n '1,180p'
