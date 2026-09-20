@@ -142,6 +142,7 @@ jobs:
           node --check /usr/share/icingaweb2/modules/nagvis/public/js/module.js
           node tests/issue84-browser.js baseline
           node tests/issue84-real-ui-click.js baseline
+          node tests/issue84-current-map-click.js baseline
           node tests/issue84-sidebar-toggle.js baseline
           node tests/issue84-map-icon-link.js baseline
           node tests/issue84-encoded-real-map.js baseline
@@ -154,6 +155,7 @@ jobs:
           node --check /usr/share/icingaweb2/modules/nagvis/public/js/module.js
           node tests/issue84-browser.js pr84
           node tests/issue84-real-ui-click.js pr84
+          node tests/issue84-current-map-click.js pr84
           node tests/issue84-sidebar-toggle.js pr84
           node tests/issue84-map-icon-link.js pr84
           node tests/issue84-encoded-real-map.js pr84
@@ -181,6 +183,7 @@ jobs:
             ${{ runner.temp }}/correct.json
             ${{ runner.temp }}/issue84-*.json
             ${{ runner.temp }}/issue84-*.png
+            ${{ runner.temp }}/issue84-samemap-*.json
             ${{ runner.temp }}/issue84-mapicon-*.json
             ${{ runner.temp }}/issue84-sidebar-*.json
             ${{ runner.temp }}/issue84-click-*.json
