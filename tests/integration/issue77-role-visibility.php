@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/icingadb-bootstrap.php';
+\Icinga\Application\Logger::create(new \Icinga\Data\ConfigObject(['log' => 'none', 'level' => 'ERROR']));
 
 $variant = getenv('NAGVIS_VARIANT') ?: 'main';
 $roleType = getenv('NAGVIS_ROLE') ?: 'unrestricted';
