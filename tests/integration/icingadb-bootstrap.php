@@ -8,6 +8,7 @@ foreach ([
     '/usr/share/icinga-php/vendor/vendor/autoload.php',
     '/usr/share/php/Icinga/Application/EmbeddedWeb.php',
     '/usr/share/nagvis/share/server/core/defines/global.php',
+    '/usr/share/nagvis/share/server/core/defines/matches.php',
     '/usr/share/nagvis/share/server/core/classes/GlobalBackendInterface.php',
 ] as $file) {
     echo "BOOT: loading $file (exists=" . (is_file($file) ? 'yes' : 'no') . ")" . PHP_EOL;
