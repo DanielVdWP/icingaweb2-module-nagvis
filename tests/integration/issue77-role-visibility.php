@@ -11,6 +11,7 @@ $restrictions = match ($roleType) {
     'unrestricted' => [],
     'objects' => ['icingadb/filter/objects' => 'host.name=ci-parent'],
     'hosts' => ['icingadb/filter/hosts' => 'host.name=ci-parent'],
+    'partial' => ['icingadb/filter/hosts' => 'host.name!=ci-child2'],
     'services' => ['icingadb/filter/services' => 'service.name=ci-critical'],
     'combined' => [
         'icingadb/filter/objects' => 'host.name=ci-parent',
@@ -84,7 +85,8 @@ $normal = $roleType === 'unrestricted' || $variant === 'main' || $variant === 'p
 $restrictHosts = in_array($roleType, ['objects','hosts','combined'], true) && ! $normal;
 $restrictServices = in_array($roleType, ['services','combined'], true) && ! $normal;
 check('host picker ' . $variant . ' ' . $roleType,
-    $names($visible), $restrictHosts ? ['ci-parent'] : $visibilityExpected);
+    $names($visible), $restrictHosts ? ['ci-parent'] : (($roleType === 'partial' && ! $normal)
+        ? ['ci-child','ci-parent'] : $visibilityExpected));
 check('service picker ' . $variant . ' ' . $roleType, count($serviceVisible),
     $restrictHosts ? 1 : ($restrictServices ? 2 : 3));
 $counts = $report['cases']['group_counts']['data'];
@@ -97,6 +99,10 @@ check('hostgroup WARNING count ' . $variant . ' ' . $roleType,
 $children = $report['cases']['automap_children_of_parent']['data'];
 if (in_array($variant,['main','pr78'],true)) {
     check('existing Automap functions have no implementation ' . $variant, $children, []);
+} elseif ($roleType === 'partial') {
+    check('partially restricted Automap returns only visible child', $children, ['ci-child']);
+    check('partially restricted Automap returns only visible parent',
+        $report['cases']['automap_parents_of_child']['data'], ['ci-parent']);
 } elseif ($roleType === 'unrestricted' || $roleType === 'services') {
     check('visible children remain available to authorized role', $children, ['ci-child','ci-child2']);
 } elseif (in_array($roleType,['objects','hosts','combined'],true)) {
