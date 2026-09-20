@@ -9,19 +9,39 @@ permissions:
   contents: read
 
 jobs:
-  inspect-available-stack:
+  real-icingadb:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect real Icinga DB stack and package availability
+      - name: Install actual Icinga DB Web and MariaDB
         shell: bash
         run: |
           set -euxo pipefail
           sudo apt-get update
-          apt-cache policy icingaweb2-module-icingadb icingadb-web icingadb icinga2 nagvis icingaweb2 libapache2-mod-php mariadb-server redis-server php-mysql
-          apt-cache search '^icingadb' || true
-          sudo apt-get install -y icingaweb2-module-icingadb || true
-          find /usr/share/icingaweb2/modules -maxdepth 2 -type f -name module.info -print -exec cat {} \;
-          find /usr/share/icingaweb2/modules/icingadb -type f \( -name 'DependencyNode.php' -o -name 'Hostgroupsummary.php' \) -print || true
-          find /usr/share -path '*icingadb*schema*' -o -name 'mysql.schema.sql' | head -60 || true
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            icingadb-web mariadb-server php-mysql php-cli php-mbstring php-intl php-xml curl git
+          sudo systemctl start mariadb
+          php -v
+          dpkg-query -W icingadb-web icingaweb2 mariadb-server icinga-php-library
+          find /usr/share/icingaweb2/modules/icingadb -maxdepth 2 -type f -name module.info -print -exec cat {} \;
+          echo '=== upstream 1.4.0 module ==='
+          git clone -q --depth=1 --branch v1.4.0 https://github.com/Icinga/icingadb-web.git /tmp/icingadb-web-v140
+          cat /tmp/icingadb-web-v140/module.info
+          test -f /tmp/icingadb-web-v140/library/Icingadb/Model/DependencyNode.php
+          echo '=== official Icinga DB schema 1.5.1 ==='
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/Icinga/icingadb/v1.5.1/schema/mysql/schema.sql -o /tmp/icingadb-schema.sql
+          sudo mysql -e "CREATE DATABASE icingadb CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;"
+          sudo mysql icingadb < /tmp/icingadb-schema.sql
+          sudo mysql icingadb -e "SELECT * FROM schema_version; SHOW TABLES LIKE 'dependency_%';"
+          for t in environment host hostgroup hostgroup_member host_state service service_state dependency_node dependency_edge; do
+            echo "=== $t ==="
+            sudo mysql icingadb -e "SHOW CREATE TABLE $t\\G" | sed -n '1,180p'
+          done
+      - name: Upload stack inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: icingadb-pr80-pr81-stack-probe
+          path: /tmp/icingadb-schema.sql
+          if-no-files-found: warn
