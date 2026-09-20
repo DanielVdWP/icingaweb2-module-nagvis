@@ -57,6 +57,8 @@ $cases = [
   'hostgroup_members' => fn() => $backend->getHostNamesInHostgroup('ci-group'),
   'no_parent' => fn() => $backend->getHostNamesWithNoParent(),
   'group_counts' => fn() => groupCounts($backend->getHostgroupStateCounts([[$group]], 0, [])),
+  'automap_children_of_parent' => fn() => $backend->getDirectChildNamesByHostName('ci-parent'),
+  'automap_parents_of_child' => fn() => $backend->getDirectParentNamesByHostName('ci-child'),
 ];
 $report=['variant'=>$variant,'role'=>$roleType,'cases'=>[]];
 foreach ($cases as $name=>$f) $report['cases'][$name] = runCase($name,$f);
