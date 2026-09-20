@@ -55,6 +55,14 @@ if ($variant === 'baseline' || $variant === 'pr80') {
         assertEq('PR80 removes only matching host-service pair', $excludePair[CRITICAL] ?? -1, 1);
         assertEq('PR80 keeps both healthy hosts on pair exclusion', $excludePair[UP] ?? -1, 2);
     }
+} elseif ($variant === 'baseline81') {
+    assertEq('baseline returns no direct parent relationships', $backend->getDirectParentNamesByHostName('ci-child'), []);
+    assertEq('baseline returns no direct child relationships', $backend->getDirectChildNamesByHostName('ci-parent'), []);
+} elseif ($variant === 'pr81old') {
+    assertEq('schema v6 reports no dependency support',
+        \Icinga\Module\Icingadb\Common\Backend::supportsDependencies(), false);
+    assertEq('PR81 old schema returns empty parents', $backend->getDirectParentNamesByHostName('ci-child'), []);
+    assertEq('PR81 old schema returns empty children', $backend->getDirectChildNamesByHostName('ci-parent'), []);
 } elseif ($variant === 'pr81') {
     $parent = $backend->getDirectParentNamesByHostName('ci-child');
     $child = $backend->getDirectChildNamesByHostName('ci-parent');
