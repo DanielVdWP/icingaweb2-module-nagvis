@@ -38,6 +38,16 @@ const path = require('path');
         // Select a link physically contained by the NagVis side menu, not Open ->.
         // NagVis starts both nested map-menu levels collapsed. Expand them through
         // their actual UI controls, then click the visible second-level link.
+        // The whole NagVis sidebar is initially collapsed even with the header visible.
+        // The leading "<" control in the real NagVis frontend reveals the sidebar.
+        report.sidebarToggleCandidates = await frame.locator('a,button').evaluateAll(nodes => nodes
+            .filter(el => (el.textContent || '').trim() === '<')
+            .map(el => el.outerHTML.slice(0,550)));
+        const sidebarToggle = frame.getByText('<', {exact:true}).first();
+        if (! await sidebarToggle.count()) throw Error('NagVis sidebar expand control missing');
+        await sidebarToggle.click({timeout:5000});
+        await page.waitForTimeout(300);
+        if (! await tree.isVisible()) throw Error('NagVis sidebar remained hidden after expand');
         await tree.click();
         await frame.locator('#sb-demo-overview').click();
         const link = frame.locator('#sb-demo-overview-childs a[href*="show=demo-ham-racks"]').first();
