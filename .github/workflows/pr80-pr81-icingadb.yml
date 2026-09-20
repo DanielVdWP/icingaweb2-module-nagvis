@@ -50,6 +50,8 @@ jobs:
           sudo cp -a /tmp/icinga-php-thirdparty-v015/. /usr/share/icinga-php/vendor/
           sudo cp -a /tmp/icingadb-web-v140/. /usr/share/icingaweb2/modules/icingadb/
           php -l tests/integration/icingadb-bootstrap.php
+          php -l tests/integration/icingadb-fixtures.php
+          sudo php tests/integration/icingadb-fixtures.php
           sudo php tests/integration/icingadb-bootstrap.php
       - name: Upload stack inspection
         if: always()
