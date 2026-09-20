@@ -108,6 +108,89 @@ jobs:
             +refs/heads/fix/issue-39-sync-map-navigation:refs/remotes/origin/fix/issue-39-sync-map-navigation
           git rev-parse origin/main origin/fix/issue-39-sync-map-navigation
           test "$(git rev-parse origin/fix/issue-39-sync-map-navigation)" = "6f484376977c82f3764ef64c726ff998919bc2c1"
+      - name: Reproduce issue 39 NagVis defaults and documented map-object route
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import time
+          config = Path('/etc/nagvis/nagvis.ini.php')
+          source = config.read_text()
+          source = re.sub(r'(?m)^\\s*(?:headermenu|urltarget|mapurl|htmlcgi)\\s*=[^\\n]*\\n', '', source)
+          for section in ('paths','defaults'):
+              if not re.search(r'(?m)^\\[' + section + r'\\]\\s*        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/main:public/js/module.js \
+            | sudo tee /usr/share/icingaweb2/modules/nagvis/public/js/module.js >/dev/null
+          node --check /usr/share/icingaweb2/modules/nagvis/public/js/module.js
+          node tests/issue84-browser.js baseline
+          node tests/issue84-real-ui-click.js baseline
+          node tests/issue84-sidebar-toggle.js baseline
+          node tests/issue84-map-icon-link.js baseline
+          node tests/issue84-encoded-real-map.js baseline
+      - name: Browser regression with exact PR 84 JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/fix/issue-39-sync-map-navigation:public/js/module.js \
+            | sudo tee /usr/share/icingaweb2/modules/nagvis/public/js/module.js >/dev/null
+          node --check /usr/share/icingaweb2/modules/nagvis/public/js/module.js
+          node tests/issue84-browser.js pr84
+          node tests/issue84-real-ui-click.js pr84
+          node tests/issue84-sidebar-toggle.js pr84
+          node tests/issue84-map-icon-link.js pr84
+          node tests/issue84-encoded-real-map.js pr84
+      - name: Capture Apache and NagVis authorization diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          sudo tail -n 150 /var/log/apache2/error.log | tee "$RUNNER_TEMP/issue84-apache-errors.log" || true
+          sudo cat /tmp/issue84-auth-events | tee "$RUNNER_TEMP/issue84-auth-events.log" || true
+          sudo grep -nE '^(authmodule|authorisationmodule|logonmodule|headermenu|mapurl|urltarget)[[:space:]]*=' /etc/nagvis/nagvis.ini.php | tee "$RUNNER_TEMP/issue84-nagvis-config.log" || true
+      - name: Upload actual stack diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-84-real-browser-diagnostics
+          path: |
+            ${{ runner.temp }}/package-candidates.txt
+            ${{ runner.temp }}/stack-inspection.log
+            ${{ runner.temp }}/headers*.txt
+            ${{ runner.temp }}/body*.html
+            ${{ runner.temp }}/actual-*.html
+            ${{ runner.temp }}/actual-*-headers.txt
+            ${{ runner.temp }}/correct.png
+            ${{ runner.temp }}/correct.json
+            ${{ runner.temp }}/issue84-*.json
+            ${{ runner.temp }}/issue84-*.png
+            ${{ runner.temp }}/issue84-mapicon-*.json
+            ${{ runner.temp }}/issue84-sidebar-*.json
+            ${{ runner.temp }}/issue84-click-*.json
+            ${{ runner.temp }}/issue84-click-*.png
+            ${{ runner.temp }}/issue84-encoded-*.json
+            ${{ runner.temp }}/issue84-encoded-*.png
+            ${{ runner.temp }}/issue84-unauthorized-*.png
+            ${{ runner.temp }}/issue84-apache-errors.log
+            ${{ runner.temp }}/issue84-auth-events.log
+            ${{ runner.temp }}/issue84-nagvis-config.log
+          if-no-files-found: warn
+, source):
+                  source += '\\n[' + section + ']\\n'
+          source = re.sub(r'(?m)^(\\[paths\\]\\s*\\n)',
+                          r'\\1htmlcgi="/icingaweb2"\\n',source,count=1)
+          source = re.sub(r'(?m)^(\\[defaults\\]\\s*\\n)',
+                          r'\\1headermenu="0"\\nurltarget="_top"\\nmapurl="[htmlcgi]/nagvis/show/map?map=[map_name]"\\n',
+                          source,count=1)
+          config.write_text(source)
+          time.sleep(2)
+          config.touch()
+          PY
+          sudo grep -nE '^(headermenu|urltarget|mapurl|htmlcgi)=' /etc/nagvis/nagvis.ini.php
+          sudo systemctl restart apache2
       - name: Browser regression on upstream baseline code
         shell: bash
         run: |
