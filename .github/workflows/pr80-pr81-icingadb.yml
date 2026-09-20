@@ -70,7 +70,8 @@ jobs:
           php -l tests/integration/icingadb-verify.php
           for variant in baseline pr80 baseline81 pr81 pr81old; do
             if [ "$variant" = "pr81old" ]; then
-              sudo mysql icingadb -e "UPDATE icingadb_schema SET version=6"
+              sudo mysql icingadb -e "DROP TABLE dependency_edge; DROP TABLE dependency_edge_state; DROP TABLE dependency_node; UPDATE icingadb_schema SET version=6"
+              test "$(sudo mysql -N icingadb -e "SHOW TABLES LIKE 'dependency_%'" | wc -l)" = "0"
               backend_file="/tmp/nagvis-pr-versions/pr81.php"
             elif [ "$variant" = "baseline81" ]; then
               backend_file="/tmp/nagvis-pr-versions/baseline.php"
