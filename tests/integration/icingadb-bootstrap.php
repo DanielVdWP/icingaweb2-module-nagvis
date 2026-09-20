@@ -31,6 +31,11 @@ spl_autoload_register(static function ($class) use ($paths) {
 echo "BOOT: class DependencyNode " . (class_exists(\Icinga\Module\Icingadb\Model\DependencyNode::class) ? 'YES' : 'NO') . PHP_EOL;
 echo "BOOT: class Backend " . (class_exists(\Icinga\Module\Icingadb\Common\Backend::class) ? 'YES' : 'NO') . PHP_EOL;
 echo "BOOT: class SqlConfig " . (class_exists(\ipl\Sql\Config::class) ? 'YES' : 'NO') . PHP_EOL;
+// Default administrator for independent backend smoke tests. The role-visibility
+// suite explicitly replaces this identity with each actual restricted user.
+\Icinga\Authentication\Auth::getInstance()->setUser(
+    (new \Icinga\User('ci-backend-admin'))->setIsUnrestricted(true)
+);
 
 $config = new \ipl\Sql\Config([
     'db' => 'mysql', 'host' => 'localhost', 'dbname' => 'icingadb',
