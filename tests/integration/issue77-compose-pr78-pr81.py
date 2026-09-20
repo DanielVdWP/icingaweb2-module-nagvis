@@ -34,3 +34,45 @@ for symbol in ('Backend', 'DependencyNode'):
 out = Path('/tmp/issue77-combined.php')
 out.write_text(base)
 print('Test-only composite created:', out, 'bytes:', out.stat().st_size)
+# Candidate integration fix, generated only in the disposable test runner.
+host_lookup = """        $host = Host::on($this->getDb())
+            ->columns(['id'])
+            ->filter(Filter::equal('name', $hostName))
+            ->first();
+
+        if (! $host) {
+"""
+secured_host = """        $hostQuery = Host::on($this->getDb())
+            ->columns(['id'])
+            ->filter(Filter::equal('name', $hostName));
+
+        if (! $this->applyUserRestrictions($hostQuery)) {
+            return [];
+        }
+
+        $host = $hostQuery->first();
+
+        if (! $host) {
+"""
+nodes_tail = """            ->filter(Filter::all(
+                Filter::like('host.id', '*'),
+                Filter::unlike('service.id', '*')
+            ));
+
+        $results = [];"""
+secured_nodes = """            ->filter(Filter::all(
+                Filter::like('host.id', '*'),
+                Filter::unlike('service.id', '*')
+            ));
+
+        if (! $this->applyUserRestrictions($nodes)) {
+            return [];
+        }
+
+        $results = [];"""
+if base.count(host_lookup) != 1 or base.count(nodes_tail) != 1:
+    raise SystemExit('Unexpected dependency query code for security candidate')
+guarded = base.replace(host_lookup, secured_host, 1).replace(nodes_tail, secured_nodes, 1)
+Path('/tmp/issue77-guarded.php').write_text(guarded)
+print('Test-only security candidate created, no PR code modified')
+
