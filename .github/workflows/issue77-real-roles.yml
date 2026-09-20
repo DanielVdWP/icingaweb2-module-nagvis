@@ -1,0 +1,85 @@
+name: Issue 77 real Icinga DB role restrictions
+on:
+  push:
+    branches:
+      - test/issue77-real-role-restrictions
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-icingadb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actual Icinga DB Web and MariaDB
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            icingadb-web mariadb-server nagvis php-mysql php-cli php-mbstring php-intl php-xml curl git
+          sudo systemctl start mariadb
+          php -v
+          dpkg-query -W icingadb-web icingaweb2 mariadb-server icinga-php-library icinga-php-thirdparty
+          dpkg -L icinga-php-library | head -30
+          dpkg -L icinga-php-thirdparty | head -30
+          find /usr/share/icingaweb2/modules/icingadb -maxdepth 2 -type f -name module.info -print -exec cat {} \;
+          echo '=== upstream 1.4.0 module ==='
+          git clone -q --depth=1 --branch v1.4.0 https://github.com/Icinga/icingadb-web.git /tmp/icingadb-web-v140
+          cat /tmp/icingadb-web-v140/module.info
+          test -f /tmp/icingadb-web-v140/library/Icingadb/Model/DependencyNode.php
+          echo '=== official Icinga DB schema 1.5.1 ==='
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/Icinga/icingadb/v1.5.1/schema/mysql/schema.sql -o /tmp/icingadb-schema.sql
+          sudo mysql -e "CREATE DATABASE icingadb CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;"
+          sudo mysql icingadb < /tmp/icingadb-schema.sql
+          sudo mysql icingadb -e "SELECT * FROM icingadb_schema; SHOW TABLES LIKE 'dependency_%';"
+          for t in environment host hostgroup hostgroup_member host_state service service_state dependency_node dependency_edge; do
+            echo "=== $t ==="
+            sudo mysql icingadb -e "SHOW CREATE TABLE $t\\G" | sed -n '1,180p'
+          done
+      - name: Install compatible upstream PHP libraries and exercise actual Icinga DB backend
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone -q --depth=1 --branch v0.19.0 https://github.com/Icinga/icinga-php-library.git /tmp/icinga-php-v019
+          git clone -q --depth=1 --branch v0.15.0 https://github.com/Icinga/icinga-php-thirdparty.git /tmp/icinga-php-thirdparty-v015
+          sudo cp -a /tmp/icinga-php-v019/. /usr/share/icinga-php/ipl/
+          sudo cp -a /tmp/icinga-php-thirdparty-v015/. /usr/share/icinga-php/vendor/
+          sudo cp -a /tmp/icingadb-web-v140/. /usr/share/icingaweb2/modules/icingadb/
+          php -l tests/integration/icingadb-bootstrap.php
+          php -l tests/integration/icingadb-fixtures.php
+          sudo php tests/integration/icingadb-fixtures.php
+          sudo php tests/integration/icingadb-bootstrap.php
+      - name: Compare actual Icinga DB role filters on upstream main and PR 78
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch --no-tags https://github.com/Icinga/icingaweb2-module-nagvis.git refs/heads/main
+          git show FETCH_HEAD:library/nagvis-includes/GlobalBackendicingadb.php > /tmp/issue77-main.php
+          git fetch --no-tags https://github.com/Icinga/icingaweb2-module-nagvis.git refs/pull/78/head
+          test "$(git rev-parse FETCH_HEAD)" = "793832f2f458f1df3bc6e0db745cfe026ca3b84e"
+          git show FETCH_HEAD:library/nagvis-includes/GlobalBackendicingadb.php > /tmp/issue77-pr78.php
+          php -l /tmp/issue77-main.php
+          php -l /tmp/issue77-pr78.php
+          php -l tests/integration/issue77-role-visibility.php
+          for variant in main pr78; do
+            for role in unrestricted objects hosts services combined; do
+              NAGVIS_VARIANT="$variant" NAGVIS_ROLE="$role" NAGVIS_BACKEND_FILE="/tmp/issue77-$variant.php" \
+                sudo --preserve-env=NAGVIS_VARIANT,NAGVIS_ROLE,NAGVIS_BACKEND_FILE \
+                php tests/integration/issue77-role-visibility.php \
+                | tee "/tmp/issue77-$variant-$role.log"
+            done
+          done
+      - name: Upload stack inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue77-real-role-visibility
+          path: |
+            /tmp/issue77-*.json
+            /tmp/issue77-*.log
+            /tmp/icingadb-schema.sql
+          if-no-files-found: warn
