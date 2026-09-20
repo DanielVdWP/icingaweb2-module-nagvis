@@ -1,0 +1,27 @@
+name: PR 80 and 81 Icinga DB integration
+on:
+  push:
+    branches:
+      - test/icingadb-pr80-pr81-integration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-available-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect real Icinga DB stack and package availability
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          apt-cache policy icingaweb2-module-icingadb icingadb-web icingadb icinga2 nagvis icingaweb2 libapache2-mod-php mariadb-server redis-server php-mysql
+          apt-cache search '^icingadb' || true
+          sudo apt-get install -y icingaweb2-module-icingadb || true
+          find /usr/share/icingaweb2/modules -maxdepth 2 -type f -name module.info -print -exec cat {} \;
+          find /usr/share/icingaweb2/modules/icingadb -type f \( -name 'DependencyNode.php' -o -name 'Hostgroupsummary.php' \) -print || true
+          find /usr/share -path '*icingadb*schema*' -o -name 'mysql.schema.sql' | head -60 || true
