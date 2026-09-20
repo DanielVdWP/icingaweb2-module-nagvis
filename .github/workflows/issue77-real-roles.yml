@@ -65,7 +65,7 @@ jobs:
           git fetch --no-tags origin +refs/heads/fix/issue-75-icingadb-automap:refs/remotes/origin/fix/issue-75-icingadb-automap
           test "$(git rev-parse origin/fix/issue-75-icingadb-automap)" = "565de319483952f6d572911f28cdc2e600fb9d20"
           git show origin/fix/issue-75-icingadb-automap:library/nagvis-includes/GlobalBackendicingadb.php > /tmp/issue77-pr81.php
-          git merge-file -p /tmp/issue77-pr81.php /tmp/issue77-main.php /tmp/issue77-pr78.php > /tmp/issue77-combined.php
+          python3 tests/integration/issue77-compose-pr78-pr81.py
           php -l /tmp/issue77-main.php
           php -l /tmp/issue77-pr78.php
           php -l /tmp/issue77-pr81.php
