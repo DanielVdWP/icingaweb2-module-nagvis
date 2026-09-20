@@ -73,7 +73,7 @@ jobs:
           php -l tests/integration/issue77-role-visibility.php
           failed=0
           for variant in main pr78 pr81 combined; do
-            for role in unrestricted objects hosts services combined; do
+            for role in unrestricted objects hosts services combined partial; do
               set +e
               NAGVIS_VARIANT="$variant" NAGVIS_ROLE="$role" NAGVIS_BACKEND_FILE="/tmp/issue77-$variant.php" \
                 sudo --preserve-env=NAGVIS_VARIANT,NAGVIS_ROLE,NAGVIS_BACKEND_FILE \
@@ -88,6 +88,14 @@ jobs:
             done
           done
           test "$failed" -eq 0
+          NAGVIS_VARIANT=pr81 NAGVIS_BACKEND_FILE=/tmp/issue77-pr81.php \
+            sudo --preserve-env=NAGVIS_VARIANT,NAGVIS_BACKEND_FILE \
+            php tests/integration/icingadb-verify.php | tee /tmp/issue77-pr81-original-smoke.log
+          sudo mysql icingadb -e "DROP TABLE dependency_edge; DROP TABLE dependency_edge_state; DROP TABLE dependency_node; UPDATE icingadb_schema SET version=6"
+          test "$(sudo mysql -N icingadb -e "SHOW TABLES LIKE 'dependency_%'" | wc -l)" = "0"
+          NAGVIS_VARIANT=pr81old NAGVIS_BACKEND_FILE=/tmp/issue77-pr81.php \
+            sudo --preserve-env=NAGVIS_VARIANT,NAGVIS_BACKEND_FILE \
+            php tests/integration/icingadb-verify.php | tee /tmp/issue77-pr81-old-schema.log
       - name: Upload stack inspection
         if: always()
         uses: actions/upload-artifact@v4
