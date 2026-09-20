@@ -28,6 +28,11 @@ if ($variant === 'baseline' || $variant === 'pr80') {
     // Real Icinga DB group query and aggregation; not a mocked ORM result.
     $withServices = totals($backend->getHostgroupStateCounts([[$group]], 0, []));
     $withoutServices = totals($backend->getHostgroupStateCounts([[$group]], 2, []));
+    $filtered = totals($backend->getHostgroupStateCounts(
+        [[$group]], 0, [['key' => 'hostgroup_name', 'op' => '=']]
+    ));
+    assertEq('ordinary hostgroup_name filter preserves healthy host count', $filtered[UP] ?? -1, 2);
+    assertEq('ordinary hostgroup_name filter preserves critical service count', $filtered[CRITICAL] ?? -1, 2);
     echo 'OBSERVE service enabled ' . json_encode($withServices) . PHP_EOL;
     echo 'OBSERVE service disabled ' . json_encode($withoutServices) . PHP_EOL;
     assertEq('hostgroup contains two healthy member hosts', $withServices[UP] ?? -1, 2);
