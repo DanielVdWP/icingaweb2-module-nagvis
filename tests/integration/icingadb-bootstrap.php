@@ -35,7 +35,7 @@ $config = new \ipl\Sql\Config([
     'username' => 'root', 'charset' => 'utf8mb4'
 ]);
 $db = new \ipl\Sql\Connection($config);
-echo "BOOT: schema " . json_encode($db->getDb()->query('SELECT version FROM icingadb_schema')->fetchAll()) . PHP_EOL;
+echo "BOOT: schema " . json_encode((new PDO('mysql:host=localhost;dbname=icingadb', 'root', ''))->query('SELECT version FROM icingadb_schema')->fetchAll()) . PHP_EOL;
 \Icinga\Module\Icingadb\Common\Backend::setDb($db);
 echo "BOOT: supportsDependencies " . (\Icinga\Module\Icingadb\Common\Backend::supportsDependencies() ? 'YES' : 'NO') . PHP_EOL;
 require_once __DIR__ . '/../../library/nagvis-includes/GlobalBackendicingadb.php';
