@@ -107,7 +107,7 @@ jobs:
             +refs/heads/main:refs/remotes/origin/main \
             +refs/heads/fix/issue-39-sync-map-navigation:refs/remotes/origin/fix/issue-39-sync-map-navigation
           git rev-parse origin/main origin/fix/issue-39-sync-map-navigation
-          test "$(git rev-parse origin/fix/issue-39-sync-map-navigation)" = "6f484376977c82f3764ef64c726ff998919bc2c1"
+          test "$(git rev-parse origin/fix/issue-39-sync-map-navigation)" = "e204e7855a7b103ce7b7cfe71abd9b5f64d6dda8"
       - name: Reproduce issue 39 NagVis defaults and documented map-object route
         shell: bash
         run: |
