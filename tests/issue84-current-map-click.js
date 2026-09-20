@@ -36,7 +36,18 @@ const path = require('path');
         if(/header_menu=1/.test(report.sameMapAnchor))
             throw Error('Menu link unexpectedly propagates header_menu=1');
         await sameMap.click();
-        await page.waitForTimeout(1250);
+        if (variant === 'pr84') {
+            // The first NagVis navigation drops header_menu. The patch must
+            // restore it without reloading Icinga Web or creating a loop.
+            await page.waitForFunction(() => {
+                const child = document.querySelector('#nagvis-iframe');
+                return child && new URL(child.contentWindow.location.href)
+                    .searchParams.get('header_menu') === '1'
+                    && child.contentDocument.body.textContent.includes('Open');
+            }, {timeout: 12000});
+        } else {
+            await page.waitForTimeout(1250);
+        }
         report.after={
             parentUrl:page.url(),
             iframeUrl:await page.locator('#nagvis-iframe').evaluate(el=>el.contentWindow.location.href),
@@ -45,16 +56,23 @@ const path = require('path');
             mapBody:(await frame.locator('body').innerText()).slice(0,180)
         };
         const parent=new URL(report.after.parentUrl), child=new URL(report.after.iframeUrl);
-        report.originalInconsistencyReproduced=parent.searchParams.get('map')==='demo-overview'
-            && parent.searchParams.get('showMenu')==='1'
-            && parent.searchParams.get('keep')==='samemap'
-            && child.searchParams.get('show')==='demo-overview'
-            && !child.searchParams.has('header_menu')
-            && report.after.openMenuCount===0
+        report.parentPreserved = parent.searchParams.get('map') === 'demo-overview'
+            && parent.searchParams.get('showMenu') === '1'
+            && parent.searchParams.get('keep') === 'samemap'
+            && child.searchParams.get('show') === 'demo-overview'
             && report.after.menuLabel.includes('Hide NagVis Menu')
-            && report.topNavigations.length===1;
-        if(!report.originalInconsistencyReproduced)
-            throw Error('Original hidden NagVis menu / stale Hide toggle did not reproduce');
+            && report.topNavigations.length === 1;
+        report.originalInconsistencyReproduced = report.parentPreserved
+            && !child.searchParams.has('header_menu')
+            && report.after.openMenuCount === 0;
+        report.fixedMenuState = report.parentPreserved
+            && child.searchParams.get('header_menu') === '1'
+            && report.after.openMenuCount === 1
+            && report.after.mapBody.includes('Demo: 1 Datacenter Hamburg');
+        if (variant === 'baseline' && !report.originalInconsistencyReproduced)
+            throw Error('Upstream main did not reproduce original menu inconsistency');
+        if (variant === 'pr84' && !report.fixedMenuState)
+            throw Error('PR84 did not restore real NagVis menu on same-map navigation');
         if(report.errors.length)throw Error('Browser errors: '+JSON.stringify(report.errors));
     }catch(e){report.failure=e.message;throw e;}finally{
         fs.writeFileSync(output+'.json',JSON.stringify(report,null,2));
