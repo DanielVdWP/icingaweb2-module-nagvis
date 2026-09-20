@@ -84,6 +84,61 @@ const path = require('path');
             throw Error('Upstream main did not reproduce original menu inconsistency');
         if (variant === 'pr84' && !report.fixedMenuState)
             throw Error('PR84 did not restore real NagVis menu on same-map navigation');
+
+        if (variant === 'pr84') {
+            // Follow the real Icinga Web dropdown controls after NagVis itself
+            // has navigated. The selected map must survive both transitions.
+            const hide = page.locator('a').filter({hasText:'Hide NagVis Menu'}).first();
+            report.hideAnchor = await hide.evaluate(el => el.outerHTML.slice(0,650));
+            await hide.evaluate(el => el.click());
+            await page.waitForFunction(() => {
+                const p = new URL(window.location.href);
+                const iframe = document.querySelector('#nagvis-iframe');
+                if (!iframe || !iframe.contentDocument
+                    || iframe.contentDocument.readyState !== 'complete') return false;
+                const c = new URL(iframe.contentWindow.location.href);
+                return p.searchParams.get('map') === 'demo-overview'
+                    && !p.searchParams.has('showMenu')
+                    && p.searchParams.get('keep') === 'samemap'
+                    && c.searchParams.get('show') === 'demo-overview'
+                    && c.searchParams.get('header_menu') === '0';
+            }, null, {timeout:12000});
+            report.afterHide = {
+                parentUrl: page.url(),
+                childUrl: await page.locator('#nagvis-iframe')
+                    .evaluate(el => el.contentWindow.location.href),
+                menuLabels: await page.locator('a').evaluateAll(es => es
+                    .map(el => el.textContent.trim()).filter(label => label.includes('NagVis Menu')))
+            };
+            if (!report.afterHide.menuLabels.includes('Show NagVis Menu'))
+                throw Error('Icinga Web toggle did not switch to Show after hiding menu');
+
+            const show = page.locator('a').filter({hasText:'Show NagVis Menu'}).first();
+            report.showAnchor = await show.evaluate(el => el.outerHTML.slice(0,650));
+            await show.evaluate(el => el.click());
+            await page.waitForFunction(() => {
+                const p = new URL(window.location.href);
+                const iframe = document.querySelector('#nagvis-iframe');
+                if (!iframe || !iframe.contentDocument
+                    || iframe.contentDocument.readyState !== 'complete') return false;
+                const c = new URL(iframe.contentWindow.location.href);
+                return p.searchParams.get('map') === 'demo-overview'
+                    && p.searchParams.get('showMenu') === '1'
+                    && p.searchParams.get('keep') === 'samemap'
+                    && c.searchParams.get('show') === 'demo-overview'
+                    && c.searchParams.get('header_menu') === '1'
+                    && iframe.contentDocument.body.innerText.includes('Open');
+            }, null, {timeout:12000});
+            report.afterShow = {
+                parentUrl: page.url(),
+                childUrl: await page.locator('#nagvis-iframe')
+                    .evaluate(el => el.contentWindow.location.href),
+                menuLabels: await page.locator('a').evaluateAll(es => es
+                    .map(el => el.textContent.trim()).filter(label => label.includes('NagVis Menu')))
+            };
+            if (!report.afterShow.menuLabels.includes('Hide NagVis Menu'))
+                throw Error('Icinga Web toggle did not switch to Hide after showing menu');
+        }
         if(report.errors.length)throw Error('Browser errors: '+JSON.stringify(report.errors));
     }catch(e){report.failure=e.message;throw e;}finally{
         fs.writeFileSync(output+'.json',JSON.stringify(report,null,2));
